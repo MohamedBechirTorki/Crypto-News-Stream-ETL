@@ -85,7 +85,7 @@ def run_fetch():
     raw = fetch_all()
     path = save_raw(raw)
 
-    logger.info(f"Saved RAW → {path}")
+    logger.info(f"Saved {len(raw)} raw articles → {path}")
     return path
 
 if __name__ == "__main__":
