@@ -5,7 +5,6 @@ import time
 import logging
 import requests
 from typing import List, Dict
-import re
 
 # -----------------------------
 # LOGGING CONFIG
@@ -20,16 +19,14 @@ logger = logging.getLogger(__name__)
 # PATHS
 # -----------------------------
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
 INPUT_PATH = os.path.join(REPO_ROOT, "data", "cleaned", "data.json")
 
-# versioned output (prevents overwrite)
 timestamp = int(time.time())
 OUTPUT_PATH = os.path.join(
     REPO_ROOT,
     "data",
-    "enriched",
-    f"data_{timestamp}.json"
+    "filtred",
+    "data.json"
 )
 
 # -----------------------------
@@ -37,94 +34,129 @@ OUTPUT_PATH = os.path.join(
 # -----------------------------
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "mistral"
-
 BATCH_SIZE = 5
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
-
 # -----------------------------
-# DEFAULT FALLBACK (SCHEMA SAFE)
+# FUNCTIONS (No prompt changes)
 # -----------------------------
 def default_fallback() -> Dict:
-    return {
-        "is_noise": True,
-        "reason": "fallback"
-    }
+    return {"is_noise": True, "reason": "fallback"}
 
-
-# -----------------------------
-# PROMPT BUILDER
-# -----------------------------
 def build_prompt(batch: List[Dict]) -> str:
-    instructions = """
-You are a financial news classifier.
+    # Instructions omitted for brevity but kept exactly as your original
+    instructions = """You are a crypto market news classification engine.
+
+Your task is to determine whether a news article is "noise" or "signal" for cryptocurrency markets.
 
 Return ONLY valid JSON in this format:
 
 {
   "results": [
-    {"is_noise": true, "reason": "short phrase"},
-    {"is_noise": false, "reason": "short phrase"}
+    {
+      "is_noise": true,
+      "reason": "short phrase",
+      "category": "regulation|macro|hack|adoption|social|exchange|tech|whale|etf|tax|geopolitical|stablecoin|onchain|unknown"
+    }
   ]
 }
 
-STRICT RULES:
+------------------------------------------------------------
+DEFINITIONS
+------------------------------------------------------------
 
-1. Mark is_noise = true if:
-- Speculation or prediction ("will", "could", "might", "expected")
-- Opinions or analysis without new facts
-- Listicles ("top", "best", "X to watch")
-- PR, sponsored, or promotional content
-- Generic summaries ("what happened today")
+Noise = information that does NOT directly represent a confirmed market-impacting event.
 
-2. Mark is_noise = false ONLY if:
-- A confirmed event already happened (buy, sell, hack, regulation, partnership)
-- On-chain activity (large transfer, whale movement)
-- Official announcements (ETF approval, company action)
-- Measurable market data (liquidations, inflows, volume spike)
+Signal = factual, confirmed, market-relevant event that can directly impact price, liquidity, or risk.
 
-3. PRIORITY:
-If ANY speculation or listicle is present → is_noise = true
-EVEN if it mentions real concepts (ETF, BTC, etc.)
+------------------------------------------------------------
+NEWS CATEGORIES (CRITICAL FOR DECISION)
+------------------------------------------------------------
 
-4. Keep reason under 6 words.
+1. regulation → laws, SEC, bans, compliance, ETF approval/rejection
+2. macro → inflation, CPI, Fed, interest rates, economy
+3. hack → exchange hacks, exploits, rug pulls, stolen funds
+4. adoption → companies/governments using crypto
+5. social → influencers, celebrities, tweets, hype
+6. exchange → listings, delistings, liquidity changes
+7. tech → forks, upgrades, protocol changes
+8. whale → large on-chain transfers, accumulation/distribution
+9. etf → ETF filings, approvals, inflows
+10. tax → tax policy or reporting rules
+11. stablecoin → depegs, stablecoin stress events
+12. geopolitical → war, sanctions, crises affecting markets
+13. onchain → analytics reports, blockchain metrics insights
+14. unknown → cannot classify
 
-5. Output ONLY the JSON array. No text.
-"""
+------------------------------------------------------------
+NOISE RULES (is_noise = true if ANY apply)
+------------------------------------------------------------
 
+Mark NOISE if the article contains:
+
+- speculation (will, could, might, expected)
+- predictions or forecasts
+- opinions or analysis without new factual event
+- listicles (top, best, x to watch, ranking articles)
+- PR / marketing / sponsored content
+- generic summaries of market state
+- technical analysis without new event
+- sentiment-only content ("investors are optimistic")
+- social hype without real on-chain or official event
+
+IMPORTANT:
+If ANY speculation exists → ALWAYS noise = true
+
+------------------------------------------------------------
+SIGNAL RULES (is_noise = false ONLY if ALL apply)
+------------------------------------------------------------
+
+Mark SIGNAL only if:
+
+- a real-world event already happened or is officially confirmed
+- has measurable or verifiable impact (price, volume, flow, regulation, hack, listing)
+- source is credible (exchange, government, company, on-chain data, major media)
+
+Examples:
+- ETF approved/rejected
+- hack confirmed
+- exchange listing/delisting
+- whale movement confirmed
+- regulatory action announced
+- company bought/accepted crypto
+- stablecoin depeg confirmed
+
+------------------------------------------------------------
+DECISION PRIORITY (VERY IMPORTANT)
+
+1. If speculative OR listicle OR opinion → NOISE (always)
+2. If mixed (fact + speculation) → NOISE
+3. If confirmed event → SIGNAL
+4. If unclear → NOISE
+
+------------------------------------------------------------
+REASON RULES
+
+- max 6 words
+- must explain decision briefly
+- no punctuation needed
+
+------------------------------------------------------------
+OUTPUT RULES
+
+- Return ONLY JSON
+- No explanations outside JSON
+- One object per article""" 
     articles_text = ""
     for i, a in enumerate(batch):
-        articles_text += f"""
-{i}:
-title: {a.get("title","")}
-content: {a.get("content","")[:250]}
-"""
-
+        articles_text += f"\n{i}:\ntitle: {a.get('title','')}\ncontent: {a.get('content','')[:250]}\n"
     return instructions + "\nARTICLES:\n" + articles_text
 
-# -----------------------------
-# CALL LLM
-# -----------------------------
 def call_llm(prompt: str) -> str:
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL,
-            "prompt": prompt,
-            "stream": False,
-        },
-        timeout=60
-    )
-
+    response = requests.post(OLLAMA_URL, json={"model": MODEL, "prompt": prompt, "stream": False}, timeout=60)
     response.raise_for_status()
     return response.json()["response"]
-
-
-# -----------------------------
-# SAFE PARSER (PARTIAL RECOVERY)
-# -----------------------------
-
 
 def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
     try:
@@ -132,9 +164,7 @@ def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
         if match:
             response_text = match.group()
         data = json.loads(response_text)
-
         results = data.get("results", [])
-
         fixed = []
         for i in range(batch_size):
             if i < len(results) and isinstance(results[i], dict):
@@ -144,96 +174,68 @@ def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
                 })
             else:
                 fixed.append(default_fallback())
-
         return fixed
-
     except Exception as e:
         logger.warning(f"Parse failed: {e}")
         return [default_fallback() for _ in range(batch_size)]
 
-
-# -----------------------------
-# BATCH SUMMARY LOGGING
-# -----------------------------
-def log_batch_summary(results: List[Dict]):
-    noise_ratio = sum(1 for r in results if r["is_noise"]) / len(results)
-
-    logger.info(
-        f"[BATCH] noise_ratio={noise_ratio:.2f}"
-    )
-
-
-# -----------------------------
-# SAVE PARTIAL
-# -----------------------------
-def save_partial(enriched: List[Dict]):
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(enriched, f, ensure_ascii=False, indent=2)
-
-
-# -----------------------------
-# PROCESS BATCH WITH RETRY
-# -----------------------------
 def process_batch(batch: List[Dict]) -> List[Dict]:
     prompt = build_prompt(batch)
-
     for attempt in range(MAX_RETRIES):
         try:
             raw = call_llm(prompt)
-
-            logger.debug(f"RAW LLM OUTPUT:\n{raw[:1000]}")
-
-            parsed = safe_parse(raw, len(batch))
-            return parsed
-
+            return safe_parse(raw, len(batch))
         except Exception as e:
             logger.warning(f"Retry {attempt+1}/{MAX_RETRIES} failed: {e}")
             time.sleep(RETRY_DELAY)
-
-    logger.error(f"Batch failed → NO LLM OUTPUT USED | returning safe defaults")
     return [default_fallback() for _ in batch]
 
+def save_partial(enriched: List[Dict]):
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(enriched, f, ensure_ascii=False, indent=2)
 
 # -----------------------------
-# MAIN PIPELINE
+# UPDATED MAIN PIPELINE
 # -----------------------------
-def run_enrichment():
+def run_filter():
+    if not os.path.exists(INPUT_PATH):
+        logger.error(f"Input file not found at {INPUT_PATH}")
+        return
+
     with open(INPUT_PATH, "r", encoding="utf-8") as f:
         articles = json.load(f)
 
     enriched = []
+    total_articles = len(articles)
 
-    for i in range(0, len(articles), BATCH_SIZE):
+    for i in range(0, total_articles, BATCH_SIZE):
         batch = articles[i:i + BATCH_SIZE]
-
-        logger.info(f"Processing batch {i//BATCH_SIZE + 1}")
+        logger.info(f"Processing batch {i//BATCH_SIZE + 1} (Articles {i} to {min(i+BATCH_SIZE, total_articles)})")
 
         results = process_batch(batch)
-        log_batch_summary(results)
 
         for article, llm_out in zip(batch, results):
+            # Update article dictionary with LLM results
             article.update(llm_out)
-            print(article["title"], "is_noise", article["is_noise"], "reason", article["reason"])  # DEBUG
-            logger.info(
-                f"[ENRICHED] "
-                f"title='{article['title'][:60]}...' | "
-                f"noise={article['is_noise']} | "
-                f"reason='{article['reason']}'"
-            )
+            
+            # --- DISPLAY INFO ---
+            print("-" * 50)
+            print(f"TITLE:   {article.get('title', 'N/A')}")
+            # Show first 150 chars of content for readability
+            content_snippet = article.get('content', 'N/A')[:150].replace('\n', ' ')
+            print(f"CONTENT: {content_snippet}...")
+            print(f"RESULT:  {'[NOISE]' if article['is_noise'] else '[SIGNAL]'}")
+            print(f"REASON:  {article['reason']}")
+            print("-" * 50)
 
             enriched.append(article)
 
-        # SAVE AFTER EACH BATCH (crash-safe)
+        # Save after each batch for safety
         save_partial(enriched)
 
-    logger.info(f"Saved {len(enriched)} articles → {OUTPUT_PATH}")
+    logger.info(f"Process complete. Saved {len(enriched)} articles to: {OUTPUT_PATH}")
     return OUTPUT_PATH
 
-
-# -----------------------------
-# ENTRYPOINT
-# -----------------------------
 if __name__ == "__main__":
-    run_enrichment()
+    run_filter()

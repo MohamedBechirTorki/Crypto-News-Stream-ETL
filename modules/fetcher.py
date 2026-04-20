@@ -36,27 +36,14 @@ RSS_FEEDS = {
     "marketwatch": "https://feeds.marketwatch.com/marketwatch/topstories/",
     "cnbc_crypto": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
     "forbes_crypto": "https://www.forbes.com/crypto-blockchain/feed/",
-
-    # =========================
-    # 🧠 INSTITUTIONAL / RESEARCH (HIGH SIGNAL)
-    # =========================
     "messari": "https://messari.io/rss",
     "chainalysis": "https://blog.chainalysis.com/rss/",
     "elliptic": "https://www.elliptic.co/blog/rss.xml",
     "defiant": "https://thedefiant.io/feed",
     "coinmetrics": "https://coinmetrics.io/blog/rss/",
     "ark_invest": "https://ark-invest.com/feed/",
-
-    # =========================
-    # 📈 ON-CHAIN / DATA ANALYTICS
-    # =========================
     "glassnode": "https://insights.glassnode.com/rss/",
     "santiment": "https://santiment.net/blog/feed",
-    "into_the_block": "https://blog.intotheblock.com/rss/",
-
-    # =========================
-    # 🏦 EXCHANGES / ECOSYSTEM SIGNALS
-    # =========================
     "binance_blog": "https://www.binance.com/en/blog/rss",
     "coinbase_blog": "https://blog.coinbase.com/feed",
     "kraken_blog": "https://blog.kraken.com/feed",
@@ -64,10 +51,6 @@ RSS_FEEDS = {
     "okx_blog": "https://www.okx.com/feed",
     "bybit_blog": "https://blog.bybit.com/en/feed/",
     "kucoin_blog": "https://www.kucoin.com/blog/rss",
-
-    # =========================
-    # 🧪 DEV / PROTOCOL / TECH
-    # =========================
     "ethereum_research": "https://ethresear.ch/latest.rss",
     "solana_blog": "https://solana.com/news/rss.xml",
     "polkadot_blog": "https://polkadot.network/blog/feed/",
@@ -89,6 +72,36 @@ RSS_FEEDS = {
     # =========================
     "coinmarketcap": "https://coinmarketcap.com/headlines/news/rss/",
     "coingecko_blog": "https://blog.coingecko.com/feed/",
+    "sec_press_releases": "https://www.sec.gov/news/pressreleases.rss",
+    "sec_litigation": "https://www.sec.gov/litigation/litreleases.rss",
+    "cftc_news": "https://www.cftc.gov/PressRoom/PressReleases/rss",
+    "eu_commission_finance": "https://ec.europa.eu/commission/presscorner/api/rss?language=en&filter=crypto",
+    "bank_of_england": "https://www.bankofengland.co.uk/rss/news",
+    "imf_blog": "https://www.imf.org/en/News/rss",
+    "federal_reserve": "https://www.federalreserve.gov/feeds/press_all.xml",
+    "blackrock_newsroom": "https://www.blackrock.com/us/individual/rss/press-releases",
+    "fidelity_news": "https://www.fidelity.com/news/rss",
+    "grayscale_news": "https://www.grayscale.com/rss.xml",
+    "ark_etf_updates": "https://ark-funds.com/feed/",
+    "vaneck_news": "https://www.vaneck.com/us/en/rss/",
+    "cme_group": "https://www.cmegroup.com/rss/news.rss",
+    "ice_markets": "https://ir.theice.com/rss/news-releases.xml",
+    "tradingview_news": "https://www.tradingview.com/feed/",
+    "coindesk_markets": "https://www.coindesk.com/arc/outboundfeeds/rss/category/markets/",
+    "cert_usa": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
+    "mitre_attacks": "https://attack.mitre.org/resources/rss/",
+    "rekt_news": "https://rekt.news/rss/",
+    "hackernews_security": "https://feeds.feedburner.com/TheHackersNews",
+    "al_jazeera_business": "https://www.aljazeera.com/xml/rss/all.xml",
+    "ap_news_business": "https://apnews.com/rss/business",
+    "ft_markets": "https://www.ft.com/?format=rss",
+    "aave_blog": "https://aave.com/blog/rss.xml",
+    "uniswap_blog": "https://blog.uniswap.org/rss.xml",
+    "curve_blog": "https://curve.fi/blog/rss.xml",
+    "defillama_blog": "https://defillama.com/blog/rss.xml",
+    "l2beat_updates": "https://l2beat.com/rss.xml",
+    "coinglass_blog": "https://www.coinglass.com/rss",
+    "deribit_insights": "https://insights.deribit.com/feed/",
 }
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
