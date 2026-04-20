@@ -139,7 +139,7 @@ def run_cleaning():
         articles = json.load(f)
 
     now = datetime.now(timezone.utc)
-    start = now - timedelta(hours=6)
+    start = now - timedelta(hours=1)
 
     filtered = []
     for a in articles:
