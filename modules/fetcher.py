@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 # RSS SOURCES (later move to config/sources.yaml)
 RSS_FEEDS = {
+
+    # =========================
+    # 📰 CORE CRYPTO NEWS
+    # =========================
     "coindesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "cointelegraph": "https://cointelegraph.com/rss",
     "decrypt": "https://decrypt.co/feed",
@@ -23,10 +27,69 @@ RSS_FEEDS = {
     "bitcoin_mag": "https://bitcoinmagazine.com/.rss/full/",
     "cryptopanic": "https://cryptopanic.com/news/rss/",
     "coinjournal": "https://coinjournal.net/feed/",
+
+    # =========================
+    # 📊 FINANCE / MACRO / MARKETS
+    # =========================
     "investing_crypto": "https://www.investing.com/rss/news_301.rss",
     "seeking_alpha": "https://seekingalpha.com/tag/cryptocurrency.xml",
-}
+    "marketwatch": "https://feeds.marketwatch.com/marketwatch/topstories/",
+    "cnbc_crypto": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+    "forbes_crypto": "https://www.forbes.com/crypto-blockchain/feed/",
 
+    # =========================
+    # 🧠 INSTITUTIONAL / RESEARCH (HIGH SIGNAL)
+    # =========================
+    "messari": "https://messari.io/rss",
+    "chainalysis": "https://blog.chainalysis.com/rss/",
+    "elliptic": "https://www.elliptic.co/blog/rss.xml",
+    "defiant": "https://thedefiant.io/feed",
+    "coinmetrics": "https://coinmetrics.io/blog/rss/",
+    "ark_invest": "https://ark-invest.com/feed/",
+
+    # =========================
+    # 📈 ON-CHAIN / DATA ANALYTICS
+    # =========================
+    "glassnode": "https://insights.glassnode.com/rss/",
+    "santiment": "https://santiment.net/blog/feed",
+    "into_the_block": "https://blog.intotheblock.com/rss/",
+
+    # =========================
+    # 🏦 EXCHANGES / ECOSYSTEM SIGNALS
+    # =========================
+    "binance_blog": "https://www.binance.com/en/blog/rss",
+    "coinbase_blog": "https://blog.coinbase.com/feed",
+    "kraken_blog": "https://blog.kraken.com/feed",
+    "bitfinex_blog": "https://blog.bitfinex.com/feed/",
+    "okx_blog": "https://www.okx.com/feed",
+    "bybit_blog": "https://blog.bybit.com/en/feed/",
+    "kucoin_blog": "https://www.kucoin.com/blog/rss",
+
+    # =========================
+    # 🧪 DEV / PROTOCOL / TECH
+    # =========================
+    "ethereum_research": "https://ethresear.ch/latest.rss",
+    "solana_blog": "https://solana.com/news/rss.xml",
+    "polkadot_blog": "https://polkadot.network/blog/feed/",
+    "chainlink_blog": "https://blog.chain.link/rss/",
+
+    # =========================
+    # 🌍 ALT NEWS / LONG TAIL
+    # =========================
+    "crypto_news": "https://crypto.news/feed/",
+    "ambcrypto": "https://ambcrypto.com/feed/",
+    "beincrypto": "https://beincrypto.com/feed/",
+    "coinspeaker": "https://www.coinspeaker.com/feed/",
+    "blockchainreporter": "https://blockchainreporter.net/feed/",
+    "cryptodaily": "https://cryptodaily.co.uk/feed",
+    "dailycoin": "https://dailycoin.com/feed/",
+
+    # =========================
+    # 📊 AGGREGATORS / META
+    # =========================
+    "coinmarketcap": "https://coinmarketcap.com/headlines/news/rss/",
+    "coingecko_blog": "https://blog.coingecko.com/feed/",
+}
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_RAW_DIR = os.path.join(REPO_ROOT, "data", "raw")

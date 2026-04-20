@@ -1,9 +1,11 @@
 import os
 import json
+import re
 import time
 import logging
 import requests
 from typing import List, Dict
+import re
 
 # -----------------------------
 # LOGGING CONFIG
@@ -46,19 +48,7 @@ RETRY_DELAY = 2
 # -----------------------------
 def default_fallback() -> Dict:
     return {
-        "is_bitcoin_relevant": False,
-        "indirect_btc_impact": False,
         "is_noise": True,
-        "asset_mentioned": "other",
-        "event_type": "other",
-        "event_direction": "neutral",
-        "novelty": 1,
-        "affected_timeframe": "short",
-        "headline_sentiment": 0.0,
-        "event_sentiment": 0.0,
-        "impact_score": 0,
-        "confidence": 0.0,
-        "magnitude": 1,
         "reason": "fallback"
     }
 
@@ -68,46 +58,50 @@ def default_fallback() -> Dict:
 # -----------------------------
 def build_prompt(batch: List[Dict]) -> str:
     instructions = """
-You are a Bitcoin market analyst. Score this news article for BTC price prediction.
-Return ONLY valid JSON — no explanation outside the JSON.
+You are a financial news classifier.
 
-Return a JSON ARRAY (one object per article).
+Return ONLY valid JSON in this format:
 
-Structure:
 {
-  "is_bitcoin_relevant": bool,
-  "indirect_btc_impact": bool,
-  "is_noise": bool,
-  "asset_mentioned": "BTC|ETH|macro|regulation|other",
-  "event_type": "regulation|institutional|on-chain|macro|technical|sentiment|hack|other",
-  "event_direction": "bullish|bearish|neutral",
-  "novelty": 1|2|3,
-  "affected_timeframe": "short|mid|long",
-  "headline_sentiment": float,
-  "event_sentiment": float,
-  "impact_score": 0|1|2|3,
-  "confidence": float,
-  "magnitude": 1|2|3|4|5,
-  "reason": "string"
+  "results": [
+    {"is_noise": true, "reason": "short phrase"},
+    {"is_noise": false, "reason": "short phrase"}
+  ]
 }
 
-Rules:
-- Short squeeze = bullish
-- ETH-only → irrelevant + noise
-- Roundups → noise
-- If noise → impact=0 and sentiments=0
+STRICT RULES:
+
+1. Mark is_noise = true if:
+- Speculation or prediction ("will", "could", "might", "expected")
+- Opinions or analysis without new facts
+- Listicles ("top", "best", "X to watch")
+- PR, sponsored, or promotional content
+- Generic summaries ("what happened today")
+
+2. Mark is_noise = false ONLY if:
+- A confirmed event already happened (buy, sell, hack, regulation, partnership)
+- On-chain activity (large transfer, whale movement)
+- Official announcements (ETF approval, company action)
+- Measurable market data (liquidations, inflows, volume spike)
+
+3. PRIORITY:
+If ANY speculation or listicle is present → is_noise = true
+EVEN if it mentions real concepts (ETF, BTC, etc.)
+
+4. Keep reason under 6 words.
+
+5. Output ONLY the JSON array. No text.
 """
 
     articles_text = ""
     for i, a in enumerate(batch):
         articles_text += f"""
-Article {i+1}:
-Title: {a.get("title", "")}
-Content: {a.get("content", "")[:300]}
+{i}:
+title: {a.get("title","")}
+content: {a.get("content","")[:250]}
 """
 
-    return instructions + "\n" + articles_text
-
+    return instructions + "\nARTICLES:\n" + articles_text
 
 # -----------------------------
 # CALL LLM
@@ -130,17 +124,24 @@ def call_llm(prompt: str) -> str:
 # -----------------------------
 # SAFE PARSER (PARTIAL RECOVERY)
 # -----------------------------
+
+
 def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
     try:
+        match = re.search(r"\{.*\}", response_text, re.DOTALL)
+        if match:
+            response_text = match.group()
         data = json.loads(response_text)
 
-        if not isinstance(data, list):
-            raise ValueError("Not a list")
+        results = data.get("results", [])
 
         fixed = []
         for i in range(batch_size):
-            if i < len(data) and isinstance(data[i], dict):
-                fixed.append(data[i])
+            if i < len(results) and isinstance(results[i], dict):
+                fixed.append({
+                    "is_noise": bool(results[i].get("is_noise", True)),
+                    "reason": str(results[i].get("reason", "unknown"))[:30]
+                })
             else:
                 fixed.append(default_fallback())
 
@@ -155,14 +156,10 @@ def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
 # BATCH SUMMARY LOGGING
 # -----------------------------
 def log_batch_summary(results: List[Dict]):
-    avg_impact = sum(r["impact_score"] for r in results) / len(results)
-    avg_conf = sum(r["confidence"] for r in results) / len(results)
     noise_ratio = sum(1 for r in results if r["is_noise"]) / len(results)
 
     logger.info(
-        f"[BATCH] avg_impact={avg_impact:.2f} | "
-        f"avg_conf={avg_conf:.2f} | "
-        f"noise_ratio={noise_ratio:.2f}"
+        f"[BATCH] noise_ratio={noise_ratio:.2f}"
     )
 
 
@@ -195,7 +192,7 @@ def process_batch(batch: List[Dict]) -> List[Dict]:
             logger.warning(f"Retry {attempt+1}/{MAX_RETRIES} failed: {e}")
             time.sleep(RETRY_DELAY)
 
-    logger.error("Batch failed → fallback used")
+    logger.error(f"Batch failed → NO LLM OUTPUT USED | returning safe defaults")
     return [default_fallback() for _ in batch]
 
 
@@ -218,15 +215,12 @@ def run_enrichment():
 
         for article, llm_out in zip(batch, results):
             article.update(llm_out)
-
+            print(article["title"], "is_noise", article["is_noise"], "reason", article["reason"])  # DEBUG
             logger.info(
                 f"[ENRICHED] "
                 f"title='{article['title'][:60]}...' | "
-                f"impact={article['impact_score']} | "
-                f"event_sent={article['event_sentiment']:.2f} | "
-                f"headline_sent={article['headline_sentiment']:.2f} | "
-                f"conf={article['confidence']:.2f} | "
-                f"noise={article['is_noise']}"
+                f"noise={article['is_noise']} | "
+                f"reason='{article['reason']}'"
             )
 
             enriched.append(article)

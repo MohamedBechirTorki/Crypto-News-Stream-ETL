@@ -1,54 +1,87 @@
 import os
 import json
-from datetime import datetime, timedelta, timezone
-from dateutil import parser as dateutil_parser
+import hashlib
+import re
 import logging
+from datetime import datetime, timedelta, timezone
+
+from bs4 import BeautifulSoup
+from dateutil import parser as dateutil_parser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ----------------------------
+# Paths
+# ----------------------------
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-INPUT_PATH = os.path.join(REPO_ROOT, "data", "normalized", "data.json")
+
+RAW_PATH = os.path.join(REPO_ROOT, "data", "raw", "raw.json")
 OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "cleaned", "data.json")
 
-NOISE_KEYWORDS = [
-    "daily recap",
-    "weekly roundup",
-    "morning brief",
-    "what happened today",
-    "top stories",
-    "market wrap"
-]
+# ----------------------------
+# Utils
+# ----------------------------
+def strip_html(text):
+    return BeautifulSoup(text or "", "html.parser").get_text(" ").strip()
 
-WEAK_FACTUAL_PATTERNS = [
-    "price prediction",
-    "analysis shows",
-    "according to analysts"
-]
+def normalize_whitespace(text):
+    return re.sub(r"\s+", " ", text).strip()
 
-def noise_score(a):
-    score = 0
-    title = a.get("title", "").lower()
+def hash_text(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-    score += sum(1 for kw in NOISE_KEYWORDS if kw in title)
-    score += sum(1 for p in WEAK_FACTUAL_PATTERNS if p in title)
+def parse_date(ts):
+    try:
+        dt = dateutil_parser.parse(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except:
+        return None
 
-    if len(title.split()) < 6:
-        score += 1
+# ----------------------------
+# Normalization
+# ----------------------------
+def normalize_article(raw, ingestion_time):
+    title = normalize_whitespace(strip_html(raw.get("title")))
+    content = normalize_whitespace(strip_html(raw.get("content", "")))
+    url = raw.get("url", "").strip()
 
-    return score
+    if not url or not title:
+        return None
 
-def quality_filter(a):
-    if a["text_length"] < 100:
-        return False
-    if a["title_length"] < 10:
-        return False
-    return noise_score(a) <= 1   
+    published = parse_date(raw.get("raw_published_at")) or ingestion_time
 
+    return {
+        "id": hash_text(url),
+        "title": title[:500],
+        "content": content[:5000],
+        "url": url,
+        "source": raw.get("source"),
+        "published_at": published.isoformat(),
+        "ingestion_time": ingestion_time.isoformat(),
+        "content_hash": hash_text(content),
+        "text_length": len(content),
+        "title_length": len(title),
+    }
 
+def normalize(raw_articles):
+    ingestion_time = datetime.now(timezone.utc)
+    normalized = []
+
+    for r in raw_articles:
+        n = normalize_article(r, ingestion_time)
+        if n:
+            normalized.append(n)
+
+    return normalized
+
+# ----------------------------
+# Cleaning
+# ----------------------------
 def is_in_window(published, start, end):
     return start <= published < end
-
 
 def deduplicate(articles):
     seen = set()
@@ -61,83 +94,7 @@ def deduplicate(articles):
 
     return unique
 
-
-def compute_quality_score(a):
-    score = 0
-
-    title = a["title"].lower()
-    content = (a.get("content") or "").lower()
-
-    # Length scoring
-    if a["text_length"] > 300:
-        score += 2
-    elif a["text_length"] > 150:
-        score += 1
-
-    # Keyword relevance
-    IMPORTANT_KEYWORDS = [
-        # People / politics
-        "trump", "powell", "elon musk", "sec", "fed", "federal reserve",
-
-        # Institutions
-        "blackrock", "jpmorgan", "goldman sachs", "morgan stanley",
-        "fidelity", "binance", "coinbase",
-
-        # Regulation / law
-        "regulation", "etf", "approval", "ban", "legal", "law", "compliance",
-
-        # Macro / economy
-        "inflation", "interest rate", "cpi", "recession", "liquidity",
-
-        # Market-moving events
-        "hack", "exploit", "bankruptcy", "crisis", "outflows", "inflows",
-        "adoption", "integration", "partnership",
-
-        # Crypto-specific strong signals
-        "bitcoin etf", "ethereum etf", "halving", "staking", "mainnet",
-        "upgrade", "fork"
-    ]
-    if any(k in title or k in content for k in IMPORTANT_KEYWORDS):
-        score += 2
-
-    # Penalize generic / low-value titles
-    PENALTY_KEYWORDS = [
-        "analysis",
-        "price prediction",
-        "price outlook",
-        "could",
-        "might",
-        "likely",
-        "expected",
-        "forecast",
-        "bull run",
-        "bearish",
-        "bullish",
-        "what this means",
-        "is this the",
-        "next big",
-        "set to",
-        "teases",
-        "signals",
-        "opinion",
-        "why",
-        "could",
-        "ai"
-    ]
-    if any(p in title for p in PENALTY_KEYWORDS):
-        score -= 2
-
-
-    return score
-
-def compute_signal_score(a):
-    return compute_quality_score(a) - (0.5 * noise_score(a))
-
-
-def run_cleaning():
-    with open(INPUT_PATH, "r", encoding="utf-8") as f:
-        articles = json.load(f)
-
+def clean(articles):
     now = datetime.now(timezone.utc)
     start = now - timedelta(hours=1)
 
@@ -146,23 +103,34 @@ def run_cleaning():
         pub = dateutil_parser.parse(a["published_at"])
         if pub.tzinfo is None:
             pub = pub.replace(tzinfo=timezone.utc)
-        
-        score = compute_quality_score(a)
-        noise = noise_score(a)
 
-        a["quality_score"] = score
-        a["noise_score"] = noise
-        a["signal_score"] = score - 0.5 * noise
-        if is_in_window(pub, start, now) and quality_filter(a) :
+        if is_in_window(pub, start, now):
             filtered.append(a)
-    cleaned = deduplicate(filtered)
-    for i in range(len(cleaned)) :
-        print(cleaned[i]["title"], "quality_score",cleaned[i]["quality_score"], "noise_score", cleaned[i]["noise_score"], "signal_score", cleaned[i]["signal_score"])
+
+    return deduplicate(filtered)
+
+# ----------------------------
+# Pipeline
+# ----------------------------
+def run_cleaning():
+    with open(RAW_PATH, "r", encoding="utf-8") as f:
+        raw_articles = json.load(f)
+
+    logger.info(f"Loaded {len(raw_articles)} raw articles")
+
+    normalized = normalize(raw_articles)
+    logger.info(f"Normalized → {len(normalized)} articles")
+
+    cleaned = clean(normalized)
+    logger.info(f"Cleaned → {len(cleaned)} articles")
+
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(cleaned, f, ensure_ascii=False, indent=2)
-    logger.info(f"Saved {len(cleaned)} cleaned articles → {OUTPUT_PATH}")
+
+    logger.info(f"Saved FINAL OUTPUT → {OUTPUT_PATH}")
+
     return OUTPUT_PATH
 
 
