@@ -96,7 +96,7 @@ def deduplicate(articles):
 
 def clean(articles):
     now = datetime.now(timezone.utc)
-    start = now - timedelta(hours=4)
+    start = now - timedelta(hours=1)
 
     filtered = []
     for a in articles:

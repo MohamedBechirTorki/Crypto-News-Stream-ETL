@@ -95,7 +95,6 @@ NOISE RULES (is_noise = true if ANY apply)
 ------------------------------------------------------------
 
 Mark NOISE if the article contains:
-
 - speculation (will, could, might, expected)
 - predictions or forecasts
 - opinions or analysis without new factual event

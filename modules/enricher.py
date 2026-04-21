@@ -93,9 +93,41 @@ ASSETS = {
     "ETF":        ["etf", "exchange traded fund"],
     "MARKET":     ["fed", "cpi", "inflation", "rate cut", "dollar",
                    "liquidity", "tariff", "treasury", "gdp", "recession"],
-    "REGULATION": ["sec", "cftc", "ban", "lawsuit", "etf approval",
-                   "compliance", "legislation"],
+    "REGULATION": ["sec", "cftc", "attorney general",
+                   "lawsuit", "sues", "illegal", "ban",
+                   "damages", "unlicensed", "enforcement"],
+    "EXCHANGE":   ["coinbase", "gemini", "binance", "kraken",
+                   "bybit", "okx", "kalshi", "hyperliquid"],
 }
+
+
+CATEGORY_MAP = {
+    "regulation":    "regulation",
+    "legal":         "regulation",
+    "enforcement":   "regulation",
+    "macro":         "macro",
+    "monetary":      "macro",
+    "hack":          "hack",
+    "exploit":       "hack",
+    "security":      "hack",
+    "institutional": "institutional",
+    "adoption":      "listing",
+    "listing":       "listing",
+    "on-chain":      "whale_move",
+    "whale":         "whale_move",
+    "defi":          "whale_move",
+    "sentiment":     "price_movement",
+    "technical":     "price_movement",
+}
+
+def standardize_category(llm_category: str) -> str:
+    if not llm_category:
+        return "unknown"
+    cat = llm_category.lower()
+    for key, mapped in CATEGORY_MAP.items():
+        if key in cat:
+            return mapped
+    return "unknown"
 
 # Each event type needs 2+ keyword hits to be classified
 # priority breaks ties when two types both have 2+ hits
@@ -112,7 +144,7 @@ EVENT_RULES = {
                      "approved", "etf", "filing", "legislation",
                      "compliance", "enforcement"],
         "priority": 5,
-        "min_hits": 2,
+        "min_hits": 1,
     },
     "macro": {
         "keywords": ["fed", "cpi", "inflation", "interest rate",
@@ -201,14 +233,24 @@ def detect_assets(text: str) -> list:
     }
     return list(found) if found else ["UNKNOWN"]
 
-def classify_event(text: str) -> str:
+def classify_event(text: str, llm_category: str = "") -> str:
+    """
+    Primary: use LLM category (already understood context).
+    Fallback: keyword rules if LLM category missing or unknown.
+    """
+    # Try LLM category first
+    from_llm = standardize_category(llm_category)
+    if from_llm != "unknown":
+        return from_llm
+
+    # Fallback to keyword rules
     t = normalize(text)
     best_type  = "unknown"
     best_score = 0
 
     for etype, rule in EVENT_RULES.items():
         hits = sum(1 for kw in rule["keywords"] if kw in t)
-        min_hits = rule.get("min_hits", 2)
+        min_hits = rule.get("min_hits", 1)
         if hits >= min_hits and rule["priority"] > best_score:
             best_type  = etype
             best_score = rule["priority"]
@@ -327,7 +369,7 @@ def enrich_article(article: dict) -> dict | None:
         return None
 
     # Classification
-    event_type    = classify_event(text)
+    event_type = classify_event(text, article.get("category", ""))
     assets        = detect_assets(text)
     timeframe     = TIMEFRAME_MAP.get(event_type, "short")
     source_weight = get_source_weight(source)
@@ -358,6 +400,29 @@ def enrich_article(article: dict) -> dict | None:
 
 # PIPELINE
 
+ALLOWED_FIELDS = {
+    "id",                  # keep if you still want it; remove if not
+    "title",
+    "content",
+    "url",
+    "source",
+    "ingestion_time",
+    "event_type",
+    "asset_mentioned",
+    "impact_score",
+    "timeframe",
+    "source_weight",
+
+    # sentiment
+    "headline_sentiment_score",
+    "headline_sentiment_label",
+    "headline_sentiment_conf",
+    "content_sentiment_score",
+    "content_sentiment_label",
+    "final_sentiment_score",
+    "final_sentiment_label",
+}
+
 def run_enrichement():
     with open(INPUT_PATH, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -386,9 +451,13 @@ def run_enrichement():
     )
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(enriched, f, ensure_ascii=False, indent=2)
+    def filter_fields(article: dict) -> dict:
+        return {k: v for k, v in article.items() if k in ALLOWED_FIELDS}
 
+    cleaned = [filter_fields(a) for a in enriched]
+
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(cleaned, f, ensure_ascii=False, indent=2)
     logger.info(f"Saved {len(enriched)} articles → {OUTPUT_PATH}")
     return OUTPUT_PATH
 
