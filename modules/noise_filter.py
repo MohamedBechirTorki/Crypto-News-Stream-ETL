@@ -29,12 +29,13 @@ OUTPUT_PATH = os.path.join(
     "data.json"
 )
 
+print("with llama3")
 # -----------------------------
 # OLLAMA CONFIG
 # -----------------------------
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "mistral"
-BATCH_SIZE = 5
+MODEL = "llama3"
+BATCH_SIZE = 1
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
@@ -154,29 +155,53 @@ OUTPUT RULES
     return instructions + "\nARTICLES:\n" + articles_text
 
 def call_llm(prompt: str) -> str:
-    response = requests.post(OLLAMA_URL, json={"model": MODEL, "prompt": prompt, "stream": False}, timeout=60)
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model": MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json"
+        },
+        timeout=60
+    )
     response.raise_for_status()
     return response.json()["response"]
 
 def safe_parse(response_text: str, batch_size: int) -> List[Dict]:
     try:
-        match = re.search(r"\{.*\}", response_text, re.DOTALL)
-        if match:
-            response_text = match.group()
-        data = json.loads(response_text)
+        # 1. extract JSON block more safely
+        match = re.search(r"\{[\s\S]*\}", response_text)
+        if not match:
+            raise ValueError("No JSON found")
+
+        cleaned = match.group()
+
+        # 2. fix common LLM mistakes
+        cleaned = cleaned.replace("'", '"')
+
+        data = json.loads(cleaned)
+
         results = data.get("results", [])
+
         fixed = []
         for i in range(batch_size):
-            if i < len(results) and isinstance(results[i], dict):
+            if i < len(results):
+                r = results[i]
                 fixed.append({
-                    "is_noise": bool(results[i].get("is_noise", True)),
-                    "reason": str(results[i].get("reason", "unknown"))[:30]
+                    "is_noise": bool(r.get("is_noise", True)),
+                    "reason": str(r.get("reason", "unknown"))[:30],
+                    "category": r.get("category", "unknown")
                 })
             else:
                 fixed.append(default_fallback())
+
         return fixed
+
     except Exception as e:
-        logger.warning(f"Parse failed: {e}")
+        logger.error("RAW RESPONSE WAS:")
+        logger.error(response_text)
+        logger.error(f"PARSE ERROR: {e}")
         return [default_fallback() for _ in range(batch_size)]
 
 def process_batch(batch: List[Dict]) -> List[Dict]:

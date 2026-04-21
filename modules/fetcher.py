@@ -13,10 +13,6 @@ logger = logging.getLogger(__name__)
 
 # RSS SOURCES (later move to config/sources.yaml)
 RSS_FEEDS = {
-
-    # =========================
-    # 📰 CORE CRYPTO NEWS
-    # =========================
     "coindesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "cointelegraph": "https://cointelegraph.com/rss",
     "decrypt": "https://decrypt.co/feed",
@@ -27,10 +23,6 @@ RSS_FEEDS = {
     "bitcoin_mag": "https://bitcoinmagazine.com/.rss/full/",
     "cryptopanic": "https://cryptopanic.com/news/rss/",
     "coinjournal": "https://coinjournal.net/feed/",
-
-    # =========================
-    # 📊 FINANCE / MACRO / MARKETS
-    # =========================
     "investing_crypto": "https://www.investing.com/rss/news_301.rss",
     "seeking_alpha": "https://seekingalpha.com/tag/cryptocurrency.xml",
     "marketwatch": "https://feeds.marketwatch.com/marketwatch/topstories/",
@@ -55,10 +47,6 @@ RSS_FEEDS = {
     "solana_blog": "https://solana.com/news/rss.xml",
     "polkadot_blog": "https://polkadot.network/blog/feed/",
     "chainlink_blog": "https://blog.chain.link/rss/",
-
-    # =========================
-    # 🌍 ALT NEWS / LONG TAIL
-    # =========================
     "crypto_news": "https://crypto.news/feed/",
     "ambcrypto": "https://ambcrypto.com/feed/",
     "beincrypto": "https://beincrypto.com/feed/",
@@ -66,10 +54,6 @@ RSS_FEEDS = {
     "blockchainreporter": "https://blockchainreporter.net/feed/",
     "cryptodaily": "https://cryptodaily.co.uk/feed",
     "dailycoin": "https://dailycoin.com/feed/",
-
-    # =========================
-    # 📊 AGGREGATORS / META
-    # =========================
     "coinmarketcap": "https://coinmarketcap.com/headlines/news/rss/",
     "coingecko_blog": "https://blog.coingecko.com/feed/",
     "sec_press_releases": "https://www.sec.gov/news/pressreleases.rss",

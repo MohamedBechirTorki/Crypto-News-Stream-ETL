@@ -27,11 +27,7 @@ logger.info("FinBERT ready.")
 
 # CONFIG
 
-# Auto-noise sources — skip enrichment, mark as noise immediately
-NOISE_SOURCES = {
-    "tradingview_news", "stocktwits", "reddit_crypto",
-    "blockchainreporter", "ambcrypto", "dailycoin"
-}
+
 
 SOURCE_WEIGHTS = {
     # Tier 1 — primary / regulatory
@@ -91,6 +87,10 @@ ASSETS = {
     "XRP":        ["xrp", "ripple"],
     "USDT":       ["tether", "usdt"],
     "USDC":       ["usdc"],
+    "AAVE":       ["aave"],
+    "AVAX":       ["avalanche", "avax"],
+    "DEFI":       ["defi", "decentralized finance"],
+    "ETF":        ["etf", "exchange traded fund"],
     "MARKET":     ["fed", "cpi", "inflation", "rate cut", "dollar",
                    "liquidity", "tariff", "treasury", "gdp", "recession"],
     "REGULATION": ["sec", "cftc", "ban", "lawsuit", "etf approval",
@@ -105,7 +105,7 @@ EVENT_RULES = {
                      "drained", "breach", "stolen", "siphon",
                      "vulnerability", "attack"],
         "priority": 5,
-        "min_hits": 1,   # 1 hit ok — hacks are unambiguous
+        "min_hits": 1,   
     },
     "regulation": {
         "keywords": ["sec", "cftc", "regulation", "lawsuit", "ban",
@@ -134,7 +134,7 @@ EVENT_RULES = {
                      "dormant wallet", "large transfer",
                      "moved", "outflow", "inflow"],
         "priority": 3,
-        "min_hits": 1,   # 1 hit ok — whale + dollar amount is clear
+        "min_hits": 1,   
     },
     "price_movement": {
         "keywords": ["surge", "rally", "pump", "dump", "crash",
@@ -318,10 +318,6 @@ def compute_sentiment(article: dict) -> dict:
 def enrich_article(article: dict) -> dict | None:
     source = article.get("source", "") or ""
 
-    # Gate 1 — auto-noise sources
-    if source in NOISE_SOURCES:
-        logger.info(f"[SKIP] noise source: {source}")
-        return None
 
     text = get_text(article)
 
