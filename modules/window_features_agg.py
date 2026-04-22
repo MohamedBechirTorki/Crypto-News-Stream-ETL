@@ -3,6 +3,8 @@ import json
 import logging
 import statistics
 from datetime import datetime, timezone, timedelta
+from features_agg.market_features import build_market_features
+from datetime import datetime
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,13 +80,87 @@ def compute_window_features(
     filtered:  list,
     cleaned:   list,
 ) -> dict:
-    """
-    Compute all window-level features from three data layers.
+    if not enriched:
+        return {
+            "window_start": get_window_start(cleaned),
 
-    enriched  → data/enriched/data.json  (scored, non-noise articles)
-    filtered  → data/filtred/data.json   (articles after noise gate)
-    cleaned   → data/cleaned/data.json   (all articles before noise gate)
-    """
+            # volume
+            "article_count": 0,
+            "total_raw": len(cleaned),
+            "noise_ratio": None,
+
+            # sentiment
+            "avg_sentiment": 0,
+            "max_sentiment": 0,
+            "min_sentiment": 0,
+            "sentiment_std": 0,
+            "weighted_avg_sentiment": 0,
+            "positive_count": 0,
+            "negative_count": 0,
+            "neutral_count": 0,
+            "avg_confidence": 0,
+
+            # impact
+            "avg_impact": 0,
+            "max_impact": 0,
+            "high_impact_count": 0,
+            "mid_impact_count": 0,
+            "low_impact_count": 0,
+            "net_impact_sentiment": 0,
+
+            # event flags
+            "has_regulation": False,
+            "has_hack": False,
+            "has_institutional": False,
+            "has_macro": False,
+            "has_whale": False,
+            "has_geopolitical": False,
+            "has_listing": False,
+            "has_defi": False,
+            "has_security": False,
+
+            # counts
+            "regulation_count": 0,
+            "hack_count": 0,
+            "institutional_count": 0,
+            "macro_count": 0,
+
+            # assets
+            "btc_mentions": 0,
+            "eth_mentions": 0,
+            "regulation_mentions": 0,
+            "exchange_mentions": 0,
+            "market_mentions": 0,
+            "defi_mentions": 0,
+            "etf_mentions": 0,
+
+            # sources
+            "avg_source_weight": 0,
+            "max_source_weight": 0,
+
+            # momentum
+            "sentiment_momentum": 0,
+
+            # price features (always null)
+            "btc_open": None,
+            "btc_close": None,
+            "btc_high": None,
+            "btc_low": None,
+            "btc_volume": None,
+            "btc_return_6h": None,
+            "btc_return_24h": None,
+            "rsi_14": None,
+            "macd": None,
+            "bb_position": None,
+            "volume_ratio": None,
+            "btc_dominance": None,
+            "fear_greed_index": None,
+            "etf_net_flow_24h": None,
+            "dxy": None,
+            "gold_price": None,
+            "sp500_return_1d": None,
+            "us_10y_yield": None,
+        }
 
     
     # Window timestamp
@@ -313,13 +389,12 @@ def run():
         f"[FEATURES] enriched={len(enriched)} | "
         f"filtered={len(filtered)} | "
         f"cleaned={len(cleaned)}"
-    )
-
-    if not enriched:
-        logger.error("[FEATURES] No enriched articles found — aborting")
-        return None
+    )            
 
     features = compute_window_features(enriched, filtered, cleaned)
+    market = build_market_features(datetime.fromisoformat(get_window_start(enriched)))
+
+    features.update(market)
 
     # Load existing history to append
     history_path = os.path.join(REPO_ROOT, "data", "features", "history.json")
