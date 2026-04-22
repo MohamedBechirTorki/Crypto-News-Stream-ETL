@@ -131,16 +131,7 @@ def build_market_features(window_start: datetime):
         "bb_position": float(bollinger_position(close)),
         "volume_ratio": float(volume_ratio(volume)),
 
-        # macro / sentiment
-        "btc_dominance": None,          # (add CoinGecko if needed)
-        "fear_greed_index": fetch_fear_greed(),
         "etf_net_flow_24h": None,       # needs external API
-
-        # macro markets (placeholders unless you wire Yahoo/AlphaVantage)
-        "dxy": None,
-        "gold_price": None,
-        "sp500_return_1d": None,
-        "us_10y_yield": None,
     }
 
     return features

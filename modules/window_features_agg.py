@@ -3,8 +3,9 @@ import json
 import logging
 import statistics
 from datetime import datetime, timezone, timedelta
-from features_agg.market_features import build_market_features
-from datetime import datetime
+import features_agg.market_features as mf 
+import features_agg.yahoo_finance as yf 
+from features_agg.btc_dominance import get_btc_dominance
 
 logging.basicConfig(
     level=logging.INFO,
@@ -288,7 +289,7 @@ def compute_window_features(
     )
     net_impact_sentiment = bullish_impact - bearish_impact
 
-    
+    btc_dom = get_btc_dominance()
     # Assemble final feature vector
     
     features = {
@@ -363,7 +364,7 @@ def compute_window_features(
         "macd":                     None,
         "bb_position":              None,
         "volume_ratio":             None,
-        "btc_dominance":            None,
+        "btc_dominance":            btc_dom,
         "fear_greed_index":         None,
         "etf_net_flow_24h":         None,
         "dxy":                      None,
@@ -392,8 +393,10 @@ def run():
     )            
 
     features = compute_window_features(enriched, filtered, cleaned)
-    market = build_market_features(datetime.fromisoformat(get_window_start(enriched)))
+    market = mf.build_market_features(datetime.fromisoformat(get_window_start(enriched)))
 
+    features.update(market)
+    market = yf.build_market_features()
     features.update(market)
 
     # Load existing history to append

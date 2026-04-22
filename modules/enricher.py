@@ -154,12 +154,13 @@ EVENT_RULES = {
         "min_hits": 2,
     },
     "institutional": {
-        "keywords": ["buys", "purchased", "acquires", "holdings",
-                     "adds", "billion", "million", "institutional",
-                     "strategy", "mstr", "microstrategy",
-                     "etf inflow", "fund"],
+        "keywords": ["firm", "trump-backed", "corporate", "treasury",
+                 "buys", "purchased", "acquires", "holdings",
+                 "adds", "billion", "million", "institutional",
+                 "strategy", "mstr", "microstrategy", "shares spike",
+                 "etf inflow", "fund", "pre-ipo"],
         "priority": 4,
-        "min_hits": 2,
+        "min_hits": 1,
     },
     "whale_move": {
         "keywords": ["whale", "on-chain", "accumulation",
