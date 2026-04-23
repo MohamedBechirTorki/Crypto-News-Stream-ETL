@@ -13,8 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
+REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 # Input paths
 ENRICHED_PATH = os.path.join(REPO_ROOT, "data", "enriched", "data.json")
 FILTERED_PATH = os.path.join(REPO_ROOT, "data", "filtred",  "data.json")

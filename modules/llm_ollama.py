@@ -10,7 +10,7 @@ class OllamaClient:
     def __init__(
         self,
         model: str = "llama3.1",
-        host: str = "http://localhost:11434",
+        host: str = "http://host.docker.internal:11434",
         timeout: int = 60,
     ):
         self.model = model

@@ -86,7 +86,7 @@ RSS_FEEDS = {
     "deribit_insights": "https://insights.deribit.com/feed/",
 }
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 DATA_RAW_DIR = os.path.join(REPO_ROOT, "data", "raw")
 DATA_RAW_PATH = os.path.join(REPO_ROOT, "data", "raw", "raw.json")
 

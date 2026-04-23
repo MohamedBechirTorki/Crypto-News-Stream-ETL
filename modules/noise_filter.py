@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # -----------------------------
 # PATHS
 # -----------------------------
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 INPUT_PATH = os.path.join(REPO_ROOT, "data", "cleaned", "data.json")
 
 timestamp = int(time.time())
