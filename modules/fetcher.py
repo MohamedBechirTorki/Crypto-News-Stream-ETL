@@ -139,7 +139,7 @@ def save_raw(articles):
 
     return DATA_RAW_PATH
 
-def run_fetch():
+def run_fetcher():
     raw = fetch_all()
     path = save_raw(raw)
 
@@ -147,4 +147,4 @@ def run_fetch():
     return path
 
 if __name__ == "__main__":
-    run_fetch()
+    run_fetcher()

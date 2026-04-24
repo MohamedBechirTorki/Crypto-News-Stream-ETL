@@ -132,7 +132,7 @@ def insert_features(data):
     logger.info(f"[DB] Stored window {data['window_start']}")
 
 
-def run():
+def save_to_db():
     logger.info("[STORAGE] Loading features...")
     data = load_features()
 
@@ -143,4 +143,4 @@ def run():
 
 if __name__ == "__main__":
     create_table()
-    run()
+    save_to_db()

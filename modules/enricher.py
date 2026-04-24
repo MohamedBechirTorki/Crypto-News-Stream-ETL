@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-from transformers import pipeline
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,19 +12,27 @@ REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirna
 INPUT_PATH  = os.path.join(REPO_ROOT, "data", "filtred", "data.json")
 OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "enriched", "data.json")
 
-# FINBERT — load once at module level
-logger.info("Loading FinBERT model...")
-_finbert = pipeline(
-    "text-classification",
-    model="ProsusAI/finbert",
-    tokenizer="ProsusAI/finbert",
-    top_k=None,          # returns all 3 labels
-    truncation=True,
-    max_length=512,
-)
-logger.info("FinBERT ready.")
+_finbert = None
+def load_finbert():
+    global _finbert
 
-# CONFIG
+    if _finbert is not None:
+        return _finbert
+
+    from transformers import pipeline  # ✅ local import (Airflow-safe)
+
+    logger.info("Loading FinBERT model...")
+    _finbert = pipeline(
+        "text-classification",
+        model="ProsusAI/finbert",
+        tokenizer="ProsusAI/finbert",
+        top_k=None,
+        truncation=True,
+        max_length=512,
+    )
+    logger.info("FinBERT ready.")
+
+    return _finbert
 
 
 
@@ -424,7 +431,9 @@ ALLOWED_FIELDS = {
     "final_sentiment_label",
 }
 
-def run_enrichement():
+def run_enricher():
+    from transformers import pipeline
+    load_finbert()
     with open(INPUT_PATH, "r", encoding="utf-8") as f:
         raw = json.load(f)
 
@@ -464,4 +473,4 @@ def run_enrichement():
 
 
 if __name__ == "__main__":
-    run_enrichement()
+    run_enricher()

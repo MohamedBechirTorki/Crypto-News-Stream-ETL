@@ -111,7 +111,7 @@ def clean(articles):
 # ----------------------------
 # Pipeline
 # ----------------------------
-def run_cleaning():
+def run_cleaner():
     with open(RAW_PATH, "r", encoding="utf-8") as f:
         raw_articles = json.load(f)
 
@@ -134,4 +134,4 @@ def run_cleaning():
 
 
 if __name__ == "__main__":
-    run_cleaning()
+    run_cleaner()

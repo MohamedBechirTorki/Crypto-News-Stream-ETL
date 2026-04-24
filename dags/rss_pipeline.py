@@ -4,11 +4,9 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# Ensure Airflow can find your modules
 sys.path.append('/opt/airflow')
 
-# Import your ETL logic
-# Change 'run' to whatever your main function is named in each file
+# ETL logic
 from modules.fetcher import run_fetcher
 from modules.cleaner import run_cleaner
 from modules.noise_filter import run_filter
@@ -30,7 +28,7 @@ with DAG(
     default_args=default_args,
     description='Crypto News ETL: Fetch -> Clean -> Filter -> Enrich -> Agg -> Store',
     schedule='@hourly',
-    start_date=datetime(2026, 4, 1), # Adjusted to your current project timeline
+    start_date=datetime(2026, 4, 1), 
     catchup=False,
     tags=['crypto', 'etl', 'rss'],
 ) as dag:
@@ -51,7 +49,7 @@ with DAG(
     )
 
     enrich_task = PythonOperator(
-        task_id='enrich_with_llm',
+        task_id='enrich_data',
         python_callable=run_enricher,
     )
 
@@ -65,5 +63,4 @@ with DAG(
         python_callable=save_to_db,
     )
 
-    # The sequence: fetcher -> cleaner -> noise_filter -> enricher -> windows_features_agg -> storage
     fetch_task >> clean_task >> filter_task >> enrich_task >> agg_task >> storage_task
