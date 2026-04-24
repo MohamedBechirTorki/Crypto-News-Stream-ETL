@@ -2,15 +2,11 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 
-# -----------------------------
 # CONFIG
-# -----------------------------
 BINANCE_URL = "https://api.binance.com/api/v3/klines"
 FNG_URL = "https://api.alternative.me/fng/"
 
-# -----------------------------
 # HELPERS
-# -----------------------------
 
 def to_ms(dt: datetime) -> int:
     return int(dt.timestamp() * 1000)
@@ -46,9 +42,7 @@ def fetch_btc_ohlcv(window_start: datetime, interval="1h", limit=100):
     return df
 
 
-# -----------------------------
 # INDICATORS
-# -----------------------------
 
 def rsi(series, period=14):
     delta = series.diff()
@@ -83,9 +77,7 @@ def volume_ratio(volume):
     return volume.iloc[-1] / volume.rolling(20).mean().iloc[-1]
 
 
-# -----------------------------
 # MACRO DATA
-# -----------------------------
 
 def fetch_fear_greed():
     try:
@@ -95,9 +87,7 @@ def fetch_fear_greed():
         return None
 
 
-# -----------------------------
 # MAIN FUNCTION
-# -----------------------------
 
 def build_market_features(window_start: datetime):
     df = fetch_btc_ohlcv(window_start)
