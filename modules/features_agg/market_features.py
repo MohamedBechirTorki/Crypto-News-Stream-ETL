@@ -13,9 +13,6 @@ def to_ms(dt: datetime) -> int:
 
 
 def fetch_btc_ohlcv(window_start: datetime, interval="1h", limit=100):
-    """
-    Fetch BTCUSDT klines up to window_start
-    """
     end_time = to_ms(window_start)
 
     params = {

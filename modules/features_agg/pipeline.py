@@ -1,9 +1,9 @@
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import timedelta
 
-from .utils import load_json, get_window_start
+from .utils import enforce_dict_list, load_enriched, load_json
 from .window_computer import compute_window_features
 import features_agg.market_features as mf
 import features_agg.yahoo_finance as yf
@@ -25,68 +25,66 @@ OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "features", "window_features.json"
 def run_aggregator():
     logger.info("[FEATURES] Loading data...")
 
-    enriched = load_json(ENRICHED_PATH)
-    filtered = load_json(FILTERED_PATH)
-    cleaned = load_json(CLEANED_PATH)
+    # Load enriched — get articles + ingestion_time separately
+    enriched, ingestion_time = load_enriched(ENRICHED_PATH)
+    filtered = enforce_dict_list(load_json(FILTERED_PATH))
+    cleaned  = enforce_dict_list(load_json(CLEANED_PATH))
+
+    if ingestion_time is None:
+        raise ValueError("No valid ingestion_time found in enriched data")
+
+    # Compute window_start from ingestion_time directly
+    window_start = ingestion_time.replace(
+        minute=0, second=0, microsecond=0
+    ) - timedelta(hours=1)
 
     logger.info(
         f"[FEATURES] enriched={len(enriched)} | "
         f"filtered={len(filtered)} | "
-        f"cleaned={len(cleaned)}"
+        f"cleaned={len(cleaned)} | "
+        f"ingestion_time={ingestion_time} | "
+        f"window_start={window_start}"
     )
 
-    # Core window features (sentiment, impact, mentions, etc.)
+    # Core window features
     features = compute_window_features(enriched, filtered, cleaned)
-
-    # Add market features from Binance
-    market = mf.build_market_features(datetime.fromisoformat(get_window_start(enriched)))
+    features["window_start"] = window_start.isoformat()
+    
+    # Market + macro features
+    market = mf.build_market_features(window_start)
     features.update(market)
 
-    # Add macro features from Yahoo Finance
-    market = yf.build_market_features()
-    features.update(market)
+    macro = yf.build_market_features()
+    features.update(macro)
 
-    # History management and sentiment momentum
+    # Sentiment momentum
     history_path = os.path.join(REPO_ROOT, "data", "features", "history.json")
+    history = []
     if os.path.exists(history_path):
         with open(history_path, "r", encoding="utf-8") as f:
             history = json.load(f)
-    else:
-        history = []
 
-    if history:
-        prev_sentiment = history[-1]["avg_sentiment"]
-        features["sentiment_momentum"] = round(
-            features["avg_sentiment"] - prev_sentiment, 4
-        )
-    else:
-        features["sentiment_momentum"] = 0.0
+    features["sentiment_momentum"] = round(
+        features["avg_sentiment"] - history[-1]["avg_sentiment"], 4
+    ) if history else 0.0
 
     history.append(features)
 
-    # Save history
+    # Save
     os.makedirs(os.path.dirname(history_path), exist_ok=True)
     with open(history_path, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
 
-    # Save latest window features
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(features, f, ensure_ascii=False, indent=2)
 
-    # Log summary
-    logger.info(f"[FEATURES] window_start:       {features['window_start']}")
-    logger.info(f"[FEATURES] article_count:      {features['article_count']}")
-    logger.info(f"[FEATURES] noise_ratio:        {features['noise_ratio']}")
-    logger.info(f"[FEATURES] avg_sentiment:      {features['avg_sentiment']}")
-    logger.info(f"[FEATURES] avg_impact:         {features['avg_impact']}")
-    logger.info(f"[FEATURES] max_impact:         {features['max_impact']}")
-    logger.info(f"[FEATURES] high_impact_count:  {features['high_impact_count']}")
-    logger.info(f"[FEATURES] has_regulation:     {features['has_regulation']}")
-    logger.info(f"[FEATURES] has_hack:           {features['has_hack']}")
-    logger.info(f"[FEATURES] has_macro:          {features['has_macro']}")
-    logger.info(f"[FEATURES] btc_mentions:       {features['btc_mentions']}")
-    logger.info(f"[FEATURES] net_impact_sent:    {features['net_impact_sentiment']}")
+    logger.info(f"[FEATURES] window_start:      {features['window_start']}")
+    logger.info(f"[FEATURES] article_count:     {features['article_count']}")
+    logger.info(f"[FEATURES] noise_ratio:       {features['noise_ratio']}")
+    logger.info(f"[FEATURES] avg_sentiment:     {features['avg_sentiment']}")
+    logger.info(f"[FEATURES] avg_impact:        {features['avg_impact']}")
+    logger.info(f"[FEATURES] sentiment_momentum:{features['sentiment_momentum']}")
     logger.info(f"[FEATURES] Saved → {OUTPUT_PATH}")
 
     return features

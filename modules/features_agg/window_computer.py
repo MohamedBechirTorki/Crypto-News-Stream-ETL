@@ -1,4 +1,4 @@
-from .utils import get_window_start, safe_mean, safe_std, extract_sentiment
+from .utils import safe_mean, safe_std, extract_sentiment
 from .btc_dominance import get_btc_dominance
 
 
@@ -9,8 +9,6 @@ def compute_window_features(enriched: list, filtered: list, cleaned: list) -> di
     """
     if not enriched:
         return {
-            "window_start": get_window_start(cleaned),
-
             # volume
             "article_count": 0,
             "total_raw": len(cleaned),
@@ -89,8 +87,6 @@ def compute_window_features(enriched: list, filtered: list, cleaned: list) -> di
             "us_10y_yield": None,
         }
 
-    # Window timestamp
-    window_start = get_window_start(enriched)
 
     # Article counts + noise ratio
     article_count = len(enriched)
@@ -192,7 +188,6 @@ def compute_window_features(enriched: list, filtered: list, cleaned: list) -> di
     btc_dom = get_btc_dominance()
 
     features = {
-        "window_start": window_start,
         "sentiment_momentum": None,       # filled later from history
 
         # volume / noise

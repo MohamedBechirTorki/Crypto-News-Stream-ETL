@@ -19,7 +19,7 @@ def load_finbert():
     if _finbert is not None:
         return _finbert
 
-    from transformers import pipeline  # ✅ local import (Airflow-safe)
+    from transformers import pipeline
 
     logger.info("Loading FinBERT model...")
     _finbert = pipeline(
@@ -435,10 +435,12 @@ def run_enricher():
     from transformers import pipeline
     load_finbert()
     with open(INPUT_PATH, "r", encoding="utf-8") as f:
-        raw = json.load(f)
+        data = json.load(f)
+    articles = data.get("articles", [])
+    ingestion_time = data.get("ingestion_time")
 
     # Only process articles that passed the noise gate
-    candidates = [a for a in raw if a.get("is_noise") is False]
+    candidates = [a for a in articles if a.get("is_noise") is False]
     logger.info(f"[PIPELINE] {len(candidates)} non-noise articles to enrich")
 
     enriched = []
@@ -466,8 +468,13 @@ def run_enricher():
 
     cleaned = [filter_fields(a) for a in enriched]
 
+    payload = {
+        "ingestion_time": ingestion_time,
+        "articles": cleaned
+    }
+
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(cleaned, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
     logger.info(f"Saved {len(enriched)} articles → {OUTPUT_PATH}")
     return OUTPUT_PATH
 

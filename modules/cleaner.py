@@ -11,16 +11,12 @@ from dateutil import parser as dateutil_parser
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ----------------------------
 # Paths
-# ----------------------------
 REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 RAW_PATH = os.path.join(REPO_ROOT, "data", "raw", "raw.json")
 OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "cleaned", "data.json")
 
-# ----------------------------
 # Utils
-# ----------------------------
 def strip_html(text):
     return BeautifulSoup(text or "", "html.parser").get_text(" ").strip()
 
@@ -39,10 +35,8 @@ def parse_date(ts):
     except:
         return None
 
-# ----------------------------
 # Normalization
-# ----------------------------
-def normalize_article(raw, ingestion_time):
+def normalize_article(raw):
     title = normalize_whitespace(strip_html(raw.get("title")))
     content = normalize_whitespace(strip_html(raw.get("content", "")))
     url = raw.get("url", "").strip()
@@ -50,7 +44,7 @@ def normalize_article(raw, ingestion_time):
     if not url or not title:
         return None
 
-    published = parse_date(raw.get("raw_published_at")) or ingestion_time
+    published = parse_date(raw.get("raw_published_at"))
 
     return {
         "id": hash_text(url),
@@ -59,26 +53,21 @@ def normalize_article(raw, ingestion_time):
         "url": url,
         "source": raw.get("source"),
         "published_at": published.isoformat(),
-        "ingestion_time": ingestion_time.isoformat(),
         "content_hash": hash_text(content),
         "text_length": len(content),
         "title_length": len(title),
     }
 
 def normalize(raw_articles):
-    ingestion_time = datetime.now(timezone.utc)
     normalized = []
-
     for r in raw_articles:
-        n = normalize_article(r, ingestion_time)
+        n = normalize_article(r)
         if n:
             normalized.append(n)
-
     return normalized
 
-# ----------------------------
+
 # Cleaning
-# ----------------------------
 def is_in_window(published, start, end):
     return start <= published < end
 
@@ -108,12 +97,12 @@ def clean(articles):
 
     return deduplicate(filtered)
 
-# ----------------------------
 # Pipeline
-# ----------------------------
 def run_cleaner():
     with open(RAW_PATH, "r", encoding="utf-8") as f:
-        raw_articles = json.load(f)
+        raw_data = json.load(f)
+    raw_articles = raw_data.get("articles", [])
+    ingestion_time = raw_data.get("ingestion_time")
 
     logger.info(f"Loaded {len(raw_articles)} raw articles")
 
@@ -124,10 +113,12 @@ def run_cleaner():
     logger.info(f"Cleaned → {len(cleaned)} articles")
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-
+    output = {
+        "ingestion_time": ingestion_time,
+        "articles": cleaned
+    }
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(cleaned, f, ensure_ascii=False, indent=2)
-
+        json.dump(output, f, ensure_ascii=False, indent=2)
     logger.info(f"Saved FINAL OUTPUT → {OUTPUT_PATH}")
 
     return OUTPUT_PATH

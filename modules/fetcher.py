@@ -134,8 +134,13 @@ def fetch_all(limit=50):
 def save_raw(articles):
     os.makedirs(os.path.dirname(DATA_RAW_PATH), exist_ok=True)
 
+    payload = {
+        "ingestion_time": datetime.now(timezone.utc).isoformat(),
+        "articles": articles
+    }
+
     with open(DATA_RAW_PATH, "w", encoding="utf-8") as f:
-        json.dump(articles, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False, indent=2)
 
     return DATA_RAW_PATH
 

@@ -6,18 +6,14 @@ import logging
 import requests
 from typing import List, Dict
 
-# -----------------------------
 # LOGGING CONFIG
-# -----------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# -----------------------------
 # PATHS
-# -----------------------------
 REPO_ROOT = os.getenv('AIRFLOW_HOME', os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 INPUT_PATH = os.path.join(REPO_ROOT, "data", "cleaned", "data.json")
 
@@ -30,18 +26,14 @@ OUTPUT_PATH = os.path.join(
 )
 
 print("with llama3")
-# -----------------------------
 # OLLAMA CONFIG
-# -----------------------------
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "llama3"
 BATCH_SIZE = 1
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
-# -----------------------------
 # FUNCTIONS (No prompt changes)
-# -----------------------------
 def default_fallback() -> Dict:
     return {"is_noise": True, "reason": "fallback"}
 
@@ -214,21 +206,27 @@ def process_batch(batch: List[Dict]) -> List[Dict]:
             time.sleep(RETRY_DELAY)
     return [default_fallback() for _ in batch]
 
-def save_partial(enriched: List[Dict]):
+def save_partial(enriched: List[Dict], ingestion_time: str):
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(enriched, f, ensure_ascii=False, indent=2)
 
-# -----------------------------
+    payload = {
+        "ingestion_time": ingestion_time,
+        "articles": enriched
+    }
+
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
 # UPDATED MAIN PIPELINE
-# -----------------------------
 def run_filter():
     if not os.path.exists(INPUT_PATH):
         logger.error(f"Input file not found at {INPUT_PATH}")
         return
 
     with open(INPUT_PATH, "r", encoding="utf-8") as f:
-        articles = json.load(f)
+        data = json.load(f)
+    articles = data.get("articles", [])
+    ingestion_time = data.get("ingestion_time")
 
     enriched = []
     total_articles = len(articles)
@@ -256,7 +254,7 @@ def run_filter():
             enriched.append(article)
 
         # Save after each batch for safety
-        save_partial(enriched)
+        save_partial(enriched, ingestion_time)
 
     logger.info(f"Process complete. Saved {len(enriched)} articles to: {OUTPUT_PATH}")
     return OUTPUT_PATH
