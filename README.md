@@ -1,4 +1,3 @@
-```markdown
 # Crypto News Stream ETL
 
 A production-grade crypto news intelligence pipeline that collects, filters, scores, and stores news articles every hour using Apache Airflow. Built to generate labeled training data for a BTC price prediction model.
@@ -194,5 +193,3 @@ Each pipeline run produces one row in `window_features` table:
 - FinBERT runs on CPU — no GPU required
 - Pipeline is idempotent — safe to rerun any window
 - `ON CONFLICT DO UPDATE` prevents duplicate rows in PostgreSQL
-
----
