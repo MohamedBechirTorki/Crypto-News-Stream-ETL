@@ -27,7 +27,7 @@ Each stage runs as an Airflow PythonOperator on a 1-hour schedule.
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.10
 - Docker + Docker Compose
 - [Ollama](https://ollama.com) (local LLM inference)
 - 8GB RAM minimum
@@ -84,26 +84,14 @@ PG_PASSWORD=your_password_here
 ### 4. Start services with Docker Compose
 
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
 
 This starts:
 - Apache Airflow (webserver + scheduler)
 - PostgreSQL
 
-### 5. Install Python dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 6. Initialize the database
-
-```bash
-python3 -c "from modules.storage import create_table; create_table()"
-```
-
-### 7. Access Airflow UI
+### 5. Access Airflow UI
 
 Open [http://localhost:8080](http://localhost:8080)
 
